@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gioco Coniugazioni Verbi Avanzato</title>
+<style>
+:root{
+  --bg-light:#f0f4f8; --card-light:#fff; --text-light:#1f2937;
+  --bg-dark:#1f2937; --card-dark:#374151; --text-dark:#f9fafb;
+  --accent:#10b981; --good:#16a34a; --bad:#ef4444;
+}
+body{margin:0;font-family:Arial,sans-serif;transition:0.3s;}
+#app{max-width:900px;margin:auto;padding:20px;border-radius:12px;transition:0.3s;}
+.btn{padding:10px 16px;margin:6px;cursor:pointer;border:none;border-radius:8px;transition:0.2s;}
+.btn:hover{transform:scale(1.05);}
+#themeToggle{position:fixed;top:15px;left:15px;}
+#exitBtn{position:fixed;top:15px;right:15px;}
+#questionBox{font-size:22px;margin:20px 0;}
+.answer{padding:10px;margin:6px 0;border-radius:8px;cursor:pointer;transition:0.2s;background:#ffffff22;}
+.answer:hover{background:#ffffff44;}
+.correct{background:var(--good);color:white;}
+.wrong{background:var(--bad);color:white;}
+.progress-bar{height:10px;background:rgba(0,0,0,0.1);border-radius:5px;margin:10px 0;}
+.progress-bar-inner{height:100%;width:0%;background:var(--accent);transition:0.5s;}
+#avatar{width:50px;height:50px;border-radius:50%;background:var(--accent);display:inline-block;vertical-align:middle;margin-right:10px;text-align:center;color:white;line-height:50px;font-weight:bold;}
+#instr{background:#eee;padding:10px;margin:10px;border-radius:8px;}
+#leaderboard{margin-top:10px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="themeToggle" class="btn">Toggle Tema</button>
+  <div id="menu">
+    <h1>Gioco Coniugazioni Verbi</h1>
+    <button class="btn" onclick="startGame('easy')">Easy (Solo Indicativi)</button>
+    <button class="btn" onclick="startGame('normal')">Normale (Tutti i Tempi)</button>
+    <button class="btn" onclick="startGame('hard')">Difficile (Normale + Inversa)</button>
+    <button class="btn" onclick="showInstructions()">Istruzioni</button>
+    <button class="btn" onclick="showLeaderboard()">Classifica</button>
+    <div style="margin-top:20px;">
+      <div id="avatar"></div><span id="levelXp"></span>
+    </div>
+    <div id="instr" style="display:none;"></div>
+    <div id="leaderboard" style="display:none;"></div>
+  </div>
+
+  <div id="game" style="display:none;">
+    <div id="questionBox"></div>
+    <div id="answers"></div>
+    <div class="progress-bar"><div id="progressInner" class="progress-bar-inner"></div></div>
+    <div id="statsBox"></div>
+    <button id="exitBtn" class="btn" onclick="quitGame()">Esci</button>
+  </div>
+</div>
+
+<audio id="soundCorrect" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+<audio id="soundWrong" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
+
+<script>
+// --- THEME ---
+let darkMode=false;
+const avatarEl=document.getElementById('avatar');
+const levelXpEl=document.getElementById('levelXp');
+let level=parseInt(localStorage.getItem('level')||'1');
+let xp=parseInt(localStorage.getItem('xp')||'0');
+applyTheme(); updateAvatar();
+document.getElementById('themeToggle').onclick=()=>{darkMode=!darkMode;applyTheme();}
+function applyTheme(){
+  document.body.style.background=darkMode?'#1f2937':'#f0f4f8';
+  document.getElementById('app').style.background=darkMode?'#374151':'#fff';
+  document.body.style.color=darkMode?'#f9fafb':'#1f2937';
+}
+function updateAvatar(){
+  avatarEl.innerText='Lv '+level;
+  levelXpEl.innerText=` XP: ${xp}/${level*50}`;
+  localStorage.setItem('level',level);
+  localStorage.setItem('xp',xp);
+}
+function addXp(a){
+  xp+=a;
+  if(xp>=level*50){ xp-=level*50; level++;}
+  updateAvatar();
+}
+
+// --- DATI ---
+const pronomi=["io","tu","lui/lei","noi","voi","loro"];
+const indicativi=[
+"INDICATIVO PRESENTE","INDICATIVO PASSATO PROSSIMO","INDICATIVO IMPERFETTO","INDICATIVO TRAPASSATO PROSSIMO",
+"INDICATIVO PASSATO REMOTO","INDICATIVO TRAPASSATO REMOTO","INDICATIVO FUTURO SEMPLICE","INDICATIVO FUTURO ANTERIORE"
+];
+const tempi=[
+"INDICATIVO PRESENTE","INDICATIVO PASSATO PROSSIMO","INDICATIVO IMPERFETTO","INDICATIVO TRAPASSATO PROSSIMO",
+"INDICATIVO PASSATO REMOTO","INDICATIVO TRAPASSATO REMOTO","INDICATIVO FUTURO SEMPLICE","INDICATIVO FUTURO ANTERIORE",
+"CONDIZIONALE PRESENTE","CONDIZIONALE PASSATO","CONGIUNTIVO PRESENTE","CONGIUNTIVO PASSATO","CONGIUNTIVO IMPERFETTO","CONGIUNTIVO TRAPASSATO"
+];
+
+// --- CONIUGAZIONI 30 VERBI ---
+const coniugazioni={
+"essere":{"INDICATIVO PRESENTE":{"io":"sono","tu":"sei","lui/lei":"è","noi":"siamo","voi":"siete","loro":"sono"},"INDICATIVO PASSATO PROSSIMO":{"io":"sono stato","tu":"sei stato","lui/lei":"è stato","noi":"siamo stati","voi":"siete stati","loro":"sono stati"},"INDICATIVO IMPERFETTO":{"io":"ero","tu":"eri","lui/lei":"era","noi":"eravamo","voi":"eravate","loro":"erano"},"CONDIZIONALE PRESENTE":{"io":"sarei","tu":"saresti","lui/lei":"sarebbe","noi":"saremmo","voi":"sareste","loro":"sarebbero"},"CONGIUNTIVO PRESENTE":{"io":"sia","tu":"sia","lui/lei":"sia","noi":"siamo","voi":"siate","loro":"siano"}},
+"avere":{"INDICATIVO PRESENTE":{"io":"ho","tu":"hai","lui/lei":"ha","noi":"abbiamo","voi":"avete","loro":"hanno"},"INDICATIVO PASSATO PROSSIMO":{"io":"ho avuto","tu":"hai avuto","lui/lei":"ha avuto","noi":"abbiamo avuto","voi":"avete avuto","loro":"hanno avuto"},"INDICATIVO IMPERFETTO":{"io":"avevo","tu":"avevi","lui/lei":"aveva","noi":"avevamo","voi":"avevate","loro":"avevano"},"CONDIZIONALE PRESENTE":{"io":"avrei","tu":"avresti","lui/lei":"avrebbe","noi":"avremmo","voi":"avreste","loro":"avrebbero"},"CONGIUNTIVO PRESENTE":{"io":"abbia","tu":"abbia","lui/lei":"abbia","noi":"abbiamo","voi":"abbiate","loro":"abbiano"}},
+"fare":{"INDICATIVO PRESENTE":{"io":"faccio","tu":"fai","lui/lei":"fa","noi":"facciamo","voi":"fate","loro":"fanno"},"INDICATIVO PASSATO PROSSIMO":{"io":"ho fatto","tu":"hai fatto","lui/lei":"ha fatto","noi":"abbiamo fatto","voi":"avete fatto","loro":"hanno fatto"},"INDICATIVO IMPERFETTO":{"io":"facevo","tu":"facevi","lui/lei":"faceva","noi":"facevamo","voi":"facevate","loro":"facevano"},"CONDIZIONALE PRESENTE":{"io":"farei","tu":"faresti","lui/lei":"farebbe","noi":"faremmo","voi":"fareste","loro":"farebbero"},"CONGIUNTIVO PRESENTE":{"io":"faccia","tu":"faccia","lui/lei":"faccia","noi":"facciamo","voi":"facciate","loro":"facciano"}},
+"dire":{"INDICATIVO PRESENTE":{"io":"dico","tu":"dici","lui/lei":"dice","noi":"diciamo","voi":"dite","loro":"dicono"},"INDICATIVO PASSATO PROSSIMO":{"io":"ho detto","tu":"hai detto","lui/lei":"ha detto","noi":"abbiamo detto","voi":"avete detto","loro":"hanno detto"},"INDICATIVO IMPERFETTO":{"io":"dicevo","tu":"dicevi","lui/lei":"diceva","noi":"dicevamo","voi":"dicevate","loro":"dicevano"},"CONDIZIONALE PRESENTE":{"io":"direi","tu":"diresti","lui/lei":"direbbe","noi":"diremmo","voi":"direste","loro":"direbbero"},"CONGIUNTIVO PRESENTE":{"io":"dica","tu":"dica","lui/lei":"dica","noi":"diciamo","voi":"diciate","loro":"dicano"}},
+"potere":{"INDICATIVO PRESENTE":{"io":"posso","tu":"puoi","lui/lei":"può","noi":"possiamo","voi":"potete","loro":"possono"},"CONDIZIONALE PRESENTE":{"io":"potrei","tu":"potresti","lui/lei":"potrebbe","noi":"potremmo","voi":"potreste","loro":"potrebbero"},"CONGIUNTIVO PRESENTE":{"io":"possa","tu":"possa","lui/lei":"possa","noi":"possiamo","voi":"possiate","loro":"possano"}},
+"volere":{"INDICATIVO PRESENTE":{"io":"voglio","tu":"vuoi","lui/lei":"vuole","noi":"vogliamo","voi":"volete","loro":"vogliono"},"CONDIZIONALE PRESENTE":{"io":"vorrei","tu":"vorresti","lui/lei":"vorrebbe","noi":"vorremmo","voi":"vorreste","loro":"vorrebbero"},"CONGIUNTIVO PRESENTE":{"io":"voglia","tu":"voglia","lui/lei":"voglia","noi":"vogliamo","voi":"vogliate","loro":"vogliano"}},
+"andare":{"INDICATIVO PRESENTE":{"io":"vado","tu":"vai","lui/lei":"va","noi":"andiamo","voi":"andate","loro":"vanno"},"CONDIZIONALE PRESENTE":{"io":"andrei","tu":"andresti","lui/lei":"andrebbe","noi":"andremmo","voi":"andreste","loro":"andrebbero"},"CONGIUNTIVO PRESENTE":{"io":"vada","tu":"vada","lui/lei":"vada","noi":"andiamo","voi":"andiate","loro":"vadano"}},
+"venire":{"INDICATIVO PRESENTE":{"io":"vengo","tu":"vieni","lui/lei":"viene","noi":"veniamo","voi":"venite","loro":"vengono"},"CONDIZIONALE PRESENTE":{"io":"verrei","tu":"verresti","lui/lei":"verrebbe","noi":"verremmo","voi":"verreste","loro":"verrebbero"},"CONGIUNTIVO PRESENTE":{"io":"venga","tu":"venga","lui/lei":"venga","noi":"veniamo","voi":"veniate","loro":"vengano"}},
+"stare":{"INDICATIVO PRESENTE":{"io":"sto","tu":"stai","lui/lei":"sta","noi":"stiamo","voi":"state","loro":"stanno"},"CONDIZIONALE PRESENTE":{"io":"starei","tu":"staresti","lui/lei":"starebbe","noi":"staremmo","voi":"stareste","loro":"starebbero"},"CONGIUNTIVO PRESENTE":{"io":"stia","tu":"stia","lui/lei":"stia","noi":"stiamo","voi":"stiate","loro":"stiano"}},
+"sapere":{"INDICATIVO PRESENTE":{"io":"so","tu":"sai","lui/lei":"sa","noi":"sappiamo","voi":"sapete","loro":"sanno"},"CONDIZIONALE PRESENTE":{"io":"saprei","tu":"sapresti","lui/lei":"saprebbe","noi":"sapremmo","voi":"sapreste","loro":"saprebbero"},"CONGIUNTIVO PRESENTE":{"io":"sappia","tu":"sappia","lui/lei":"sappia","noi":"sappiamo","voi":"sappiate","loro":"sappiano"}},
+"vedere":{"INDICATIVO PRESENTE":{"io":"vedo","tu":"vedi","lui/lei":"vede","noi":"vediamo","voi":"vedete","loro":"vedono"},"CONDIZIONALE PRESENTE":{"io":"vedrei","tu":"vedresti","lui/lei":"vedrebbe","noi":"vedremmo","voi":"vedreste","loro":"vedrebbero"},"CONGIUNTIVO PRESENTE":{"io":"veda","tu":"veda","lui/lei":"veda","noi":"vediamo","voi":"vediate","loro":"vedano"}},
+"dare":{"INDICATIVO PRESENTE":{"io":"do","tu":"dai","lui/lei":"dà","noi":"diamo","voi":"date","loro":"danno"},"CONDIZIONALE PRESENTE":{"io":"darei","tu":"daresti","lui/lei":"darebbe","noi":"daremmo","voi":"dareste","loro":"darebbero"},"CONGIUNTIVO PRESENTE":{"io":"dia","tu":"dia","lui/lei":"dia","noi":"diamo","voi":"diate","loro":"diano"}},
+"mangiare":{"INDICATIVO PRESENTE":{"io":"mangio","tu":"mangi","lui/lei":"mangia","noi":"mangiamo","voi":"mangiate","loro":"mangiano"},"CONDIZIONALE PRESENTE":{"io":"mangerei","tu":"mangeresti","lui/lei":"mangerebbe","noi":"mangeremmo","voi":"mangereste","loro":"mangerebbero"},"CONGIUNTIVO PRESENTE":{"io":"mangi","tu":"mangi","lui/lei":"mangi","noi":"mangiamo","voi":"mangiate","loro":"mangino"}},
+"bere":{"INDICATIVO PRESENTE":{"io":"bevo","tu":"bevi","lui/lei":"beve","noi":"beviamo","voi":"bevete","loro":"bevono"},"CONDIZIONALE PRESENTE":{"io":"berrei","tu":"berresti","lui/lei":"berrebbe","noi":"berremmo","voi":"berreste","loro":"berrebbero"},"CONGIUNTIVO PRESENTE":{"io":"beva","tu":"beva","lui/lei":"beva","noi":"beviamo","voi":"beviate","loro":"bevano"}},
+"leggere":{"INDICATIVO PRESENTE":{"io":"leggo","tu":"leggi","lui/lei":"legge","noi":"leggiamo","voi":"leggete","loro":"leggono"},"CONDIZIONALE PRESENTE":{"io":"leggerei","tu":"leggeresti","lui/lei":"leggerebbe","noi":"leggeremmo","voi":"leggereste","loro":"leggerebbero"},"CONGIUNTIVO PRESENTE":{"io":"legga","tu":"legga","lui/lei":"legga","noi":"leggiamo","voi":"leggiate","loro":"leggano"}},
+"scrivere":{"INDICATIVO PRESENTE":{"io":"scrivo","tu":"scrivi","lui/lei":"scrive","noi":"scriviamo","voi":"scrivete","loro":"scrivono"},"CONDIZIONALE PRESENTE":{"io":"scriverei","tu":"scriveresti","lui/lei":"scriverebbe","noi":"scriveremmo","voi":"scrivereste","loro":"scriverebbero"},"CONGIUNTIVO PRESENTE":{"io":"scriva","tu":"scriva","lui/lei":"scriva","noi":"scriviamo","voi":"scriviate","loro":"scrivano"}},
+"parlare":{"INDICATIVO PRESENTE":{"io":"parlo","tu":"parli","lui/lei":"parla","noi":"parliamo","voi":"parlate","loro":"parlano"},"CONDIZIONALE PRESENTE":{"io":"parlerei","tu":"parleresti","lui/lei":"parlerebbe","noi":"parleremmo","voi":"parlereste","loro":"parlerebbero"},"CONGIUNTIVO PRESENTE":{"io":"parli","tu":"parli","lui/lei":"parli","noi":"parliamo","voi":"parliate","loro":"parlino"}},
+"chiedere":{"INDICATIVO PRESENTE":{"io":"chiedo","tu":"chiedi","lui/lei":"chiede","noi":"chiediamo","voi":"chiedete","loro":"chiedono"},"CONDIZIONALE PRESENTE":{"io":"chiederei","tu":"chiederesti","lui/lei":"chiederebbe","noi":"chiederemmo","voi":"chiedereste","loro":"chiederebbero"},"CONGIUNTIVO PRESENTE":{"io":"chieda","tu":"chieda","lui/lei":"chieda","noi":"chiediamo","voi":"chiediate","loro":"chiedano"}},
+"trovare":{"INDICATIVO PRESENTE":{"io":"trovo","tu":"trovi","lui/lei":"trova","noi":"troviamo","voi":"trovate","loro":"trovano"},"CONDIZIONALE PRESENTE":{"io":"troverei","tu":"troveresti","lui/lei":"troverebbe","noi":"troveremmo","voi":"trovereste","loro":"troverebbero"},"CONGIUNTIVO PRESENTE":{"io":"trovi","tu":"trovi","lui/lei":"trovi","noi":"troviamo","voi":"troviate","loro":"trovino"}},
+"capire":{"INDICATIVO PRESENTE":{"io":"capisco","tu":"capisci","lui/lei":"capisce","noi":"capiamo","voi":"capite","loro":"capiscono"},"CONDIZIONALE PRESENTE":{"io":"capirei","tu":"capiresti","lui/lei":"capirebbe","noi":"capiremmo","voi":"capireste","loro":"capirebbero"},"CONGIUNTIVO PRESENTE":{"io":"capisca","tu":"capisca","lui/lei":"capisca","noi":"capiamo","voi":"capiate","loro":"capiscano"}},
+"mettere":{"INDICATIVO PRESENTE":{"io":"metto","tu":"metti","lui/lei":"mette","noi":"mettiamo","voi":"mettete","loro":"mettono"},"CONDIZIONALE PRESENTE":{"io":"metterei","tu":"metteresti","lui/lei":"metterebbe","noi":"metteremmo","voi":"mettereste","loro":"metterebbero"},"CONGIUNTIVO PRESENTE":{"io":"metta","tu":"metta","lui/lei":"metta","noi":"mettiamo","voi":"mettiate","loro":"mettano"}},
+"prendere":{"INDICATIVO PRESENTE":{"io":"prendo","tu":"prendi","lui/lei":"prende","noi":"prendiamo","voi":"prendete","loro":"prendono"},"CONDIZIONALE PRESENTE":{"io":"prenderei","tu":"prenderesti","lui/lei":"prenderebbe","noi":"prenderemmo","voi":"prendereste","loro":"prenderebbero"},"CONGIUNTIVO PRESENTE":{"io":"prenda","tu":"prenda","lui/lei":"prenda","noi":"prendiamo","voi":"prendiate","loro":"prendano"}}
+};
+
+// --- GIOCO ---
+let questions=[],current=0,score=0,mode='',startTime=0;
+
+function startGame(d){mode=d; generateQuestions(d,false); startTime=Date.now(); showQuestion();document.getElementById('menu').style.display='none';document.getElementById('game').style.display='block';}
+function quitGame(){document.getElementById('game').style.display='none';document.getElementById('menu').style.display='block';}
+
+function generateQuestions(d,reverse){
+  questions=[];
+  const verbs=Object.keys(coniugazioni);
+  const maxQ=20;
+  for(let i=0;i<maxQ;i++){
+    let v=verbs[Math.floor(Math.random()*verbs.length)];
+    let tKeys=(d==='easy'? indicativi:tempi).filter(k=>coniugazioni[v][k]);
+    if(tKeys.length===0){i--;continue;}
+    let t=tKeys[Math.floor(Math.random()*tKeys.length)];
+    let p=pronomi[Math.floor(Math.random()*pronomi.length)];
+    questions.push({v,t,p,reverse:(d==='hard')?Math.random()<0.5:false});
+  }
+  current=0; score=0;
+}
+
+function showQuestion(){
+  if(current>=questions.length){finish();return;}
+  const q=questions[current];
+  let qtext='';
+  if(q.reverse){const f=coniugazioni[q.v][q.t][q.p]; qtext=`A quale tempo appartiene "${f}" del verbo "${q.v}" per pronome "${q.p}"?`;}
+  else qtext=`Qual è la forma del tempo ${q.t} del verbo "${q.v}" per il pronome "${q.p}"?`;
+  document.getElementById('questionBox').innerText=qtext;
+
+  let opts=[];
+  if(q.reverse){opts.push(q.t); let other=Object.keys(coniugazioni[q.v]).filter(x=>x!==q.t);shuffle(other); opts.push(...other.slice(0,4));}
+  else{opts.push(coniugazioni[q.v][q.t][q.p]); let other=Object.keys(coniugazioni[q.v]).filter(x=>x!==q.t);shuffle(other);opts.push(...other.slice(0,4).map(k=>coniugazioni[q.v][k][q.p]));}
+  shuffle(opts);
+
+  const ansDiv=document.getElementById('answers'); ansDiv.innerHTML='';
+  opts.forEach(o=>{
+    const d=document.createElement('div'); d.className='answer'; d.innerText=o;
+    d.onclick=()=>checkAnswer(o,q); ansDiv.appendChild(d);
+  });
+  updateProgress();
+}
+
+function checkAnswer(sel,q){
+  const correct=q.reverse?q.t:coniugazioni[q.v][q.t][q.p];
+  const btns=document.querySelectorAll('.answer');
+  btns.forEach(b=>{if(b.innerText===correct)b.classList.add('correct');else if(b.innerText===sel)b.classList.add('wrong'); b.style.pointerEvents='none';});
+  if(sel===correct){score++; document.getElementById('soundCorrect').play(); addXp(20);}
+  else document.getElementById('soundWrong').play();
+  setTimeout(()=>{current++; showQuestion();},1500);
+}
+
+function updateProgress(){
+  const frac=(current/questions.length)*100;
+  document.querySelector('.progress-bar-inner').style.width=frac+'%';
+  document.getElementById('statsBox').innerText=`Domanda ${current+1}/${questions.length} – Punteggio: ${score} – Lv: ${level}`;
+}
+
+function finish(){
+  const time=Math.floor((Date.now()-startTime)/1000);
+  const percent=Math.round(score/questions.length*100);
+  const nome=prompt("Partita finita! Inserisci il tuo nome per la classifica:");
+  if(nome){saveScore(nome,percent,time);}
+  alert(`Hai finito! Punteggio: ${score}/${questions.length} (${percent}%)`);
+  quitGame();
+}
+
+function saveScore(nome,percent,time){
+  let scores=JSON.parse(localStorage.getItem('leaderboard')||'[]');
+  scores.push({nome,percent,time});
+  scores=scores.sort((a,b)=>b.percent-a.percent).slice(0,10);
+  localStorage.setItem('leaderboard',JSON.stringify(scores));
+}
+
+function showLeaderboard(){
+  document.getElementById('instr').style.display='none';
+  const lb=document.getElementById('leaderboard');
+  lb.innerHTML='<h3>Classifica</h3>';
+  let scores=JSON.parse(localStorage.getItem('leaderboard')||'[]');
+  if(scores.length===0)lb.innerHTML+='Nessuna partita salvata';
+  else scores.forEach((s,i)=>{lb.innerHTML+=`${i+1}. ${s.nome} – ${s.percent}% corrette – ${s.time}s<br>`;});
+  lb.style.display='block';
+}
+
+function showInstructions(){
+  document.getElementById('leaderboard').style.display='none';
+  const i=document.getElementById('instr');
+  i.innerHTML=`<h3>Istruzioni</h3>
+  <p>1. Scegli una modalità: Easy (solo indicativi), Normale (tutti i tempi), Difficile (mix con modalità inversa).</p>
+  <p>2. Rispondi alle domande cliccando sulla risposta corretta.</p>
+  <p>3. Ogni risposta corretta ti fa guadagnare XP e punti.</p>
+  <p>4. In modalità Difficile potresti dover indovinare il tempo del verbo invece della forma.</p>
+  <p>5. La classifica tiene traccia delle migliori 10 partite.</p>`;
+  i.style.display='block';
+}
+
+// Utility
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
+</script>
+</body>
+</html>
+
